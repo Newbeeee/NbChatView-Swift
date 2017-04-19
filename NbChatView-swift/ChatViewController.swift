@@ -57,6 +57,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         // 底部工具栏界面
         toolBarView = ToolBarView()
         toolBarView.textView.delegate = self
+        toolBarView.refreshButton.addTarget(self, action: #selector(clearMessage), for: .touchUpInside)
         view.addSubview(toolBarView)
         
         // 添加约束
@@ -128,24 +129,33 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         keyBoardAnimateDuration = duration.doubleValue
         
         // 整体上移frame
-        UIView.animate(withDuration: keyBoardAnimateDuration, animations: { 
-            let newFrame = CGRect(x: 0, y: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT - keyBoardHeight)
-            self.view.frame = newFrame
-        }) { (finish) in
-            if finish {
+        let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
+        
+        UIView.animate(withDuration: keyBoardAnimateDuration, delay: 0, options: options, animations: {
+            self.view.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+        }) { (finished) in
+            if finished {
                 // 让消息的最后一条滚动到底部工具栏上方
                 self.scrollToBottom()
             }
         }
     }
     
-    func keyBoardWillHide(notification: NSNotification) {
+    func keyBoardWillHide(notification: Notification) {
+        
+        let userInfo = notification.userInfo! as Dictionary
+        
+        // 得到键盘弹出所需时间
+        let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
+        keyBoardAnimateDuration = duration.doubleValue
+        
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
             // 还原frame
-            UIView.animate(withDuration: keyBoardAnimateDuration, animations: { 
-                let newFrame = CGRect(x: 0, y: 0, width: SCREEN_WIDTH, height: SCREEN_HEIGHT)
-                self.view.frame = newFrame
+            let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
+            
+            UIView.animate(withDuration: keyBoardAnimateDuration, delay: 0, options: options, animations: {
+                self.view.transform = CGAffineTransform.identity
             })
         }
     }
@@ -161,6 +171,11 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         if msgList.count > 0 {
             chatTableView.scrollToRow(at: IndexPath(row: msgList.count - 1, section: 0), at: .bottom, animated: true)
         }
+    }
+    
+    func clearMessage() {
+        msgList.removeAll()
+        chatTableView.reloadData()
     }
     
     // 点击消息列表键盘消失
