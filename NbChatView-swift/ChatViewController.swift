@@ -17,13 +17,15 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     
     var msgList = [Message]()
     
-    var keyBoardAnimateDuration: Double!
+    var mKeyBoardAnimateDuration: Double!
+    var mKeyBoardHeight: CGFloat!
     
     var fisrtLoad = true
     var animateType = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         
         view.backgroundColor = UIColor.rgbColorFromHex(rgb: 0xF5F6FA)
         
@@ -57,7 +59,6 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         // 底部工具栏界面
         toolBarView = ToolBarView()
-        toolBarView.translatesAutoresizingMaskIntoConstraints = false
         toolBarView.textView.delegate = self
         toolBarView.refreshButton.addTarget(self, action: #selector(clearMessage), for: .touchUpInside)
         view.addSubview(toolBarView)
@@ -120,15 +121,18 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     
     // MARK: private
     func keyBoardWillShow(notification: Notification) {
+        print("滑动前 originY: " + String(describing: self.chatTableView.frame.origin.y) + "\n" + "height: " +
+        String(describing: self.chatTableView.frame.height))
         let userInfo = notification.userInfo! as Dictionary
         let value = userInfo[UIKeyboardFrameEndUserInfoKey] as! NSValue
         let keyBoardRect = value.cgRectValue
         // 得到键盘高度
         let keyBoardHeight = keyBoardRect.size.height
+        mKeyBoardHeight = keyBoardHeight
         
         // 得到键盘弹出所需时间
         let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
-        keyBoardAnimateDuration = duration.doubleValue
+        mKeyBoardAnimateDuration = duration.doubleValue
         
         var animate: (()->Void) = {
             self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
@@ -141,7 +145,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
             let cellDistance = rect.origin.y + rect.height
             let distance1 = SCREEN_HEIGHT - 64 - toolBarHeight - keyBoardHeight
-            //let distance2 = SCREEN_HEIGHT - 64 - toolBarHeight
+            let distance2 = SCREEN_HEIGHT - 64 - toolBarHeight
 
             if cellDistance <= distance1 {
                 // 只滑动 toolBar
@@ -150,18 +154,26 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                 }
                 animateType = 0
+            } else if distance1 < cellDistance && cellDistance <= distance2{
+                // chatview 滑动一段差值
+                let difY = mKeyBoardHeight + toolBarHeight - SCREEN_HEIGHT + cellDistance
+                animate = {
+                    self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY)
+                }
+                animateType = 1
             } else {
-                // 整体滑动
                 animate = {
                     self.view.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                 }
-                animateType = 1
+                animateType = 2
             }
         }
         let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
         
-        UIView.animate(withDuration: keyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
-            self.scrollToBottom()
+        UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
+            print("滑动后 originY: " + String(describing: self.chatTableView.frame.origin.y) + "\n" + "height: " +
+                String(describing: self.chatTableView.frame.height))
         })
     }
     
@@ -171,7 +183,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         // 得到键盘弹出所需时间
         let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
-        keyBoardAnimateDuration = duration.doubleValue
+        mKeyBoardAnimateDuration = duration.doubleValue
         
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
@@ -189,14 +201,19 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                 }
             case 1:
                 animate = {
+                    self.toolBarView.transform = CGAffineTransform.identity
+                    self.chatTableView.transform = CGAffineTransform.identity
+                }
+            case 2:
+                animate = {
                     self.view.transform = CGAffineTransform.identity
                 }
             default:
                 ()
             }
             
-            UIView.animate(withDuration: keyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
-                self.scrollToBottom()
+            UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
+                
             })
         }
     }
@@ -204,6 +221,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     // 刷新列表
     func reloadTableView() {
         chatTableView.reloadData()
+        chatTableView.layoutIfNeeded()
         scrollToBottom()
     }
     
@@ -217,12 +235,32 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     func clearMessage() {
         msgList.removeAll()
         chatTableView.reloadData()
+        animateType = 0
     }
     
     // 点击消息列表键盘消失
     func tapRemoveBottomView(recognizer: UITapGestureRecognizer) {
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
+        }
+    }
+    
+    func refreshLayout() {
+        // 添加约束
+        toolBarView.snp.removeConstraints()
+        chatTableView.snp.removeConstraints()
+        toolBarView.snp.makeConstraints { (make) in
+            make.left.equalTo(view.snp.left)
+            make.right.equalTo(view.snp.right)
+            make.height.equalTo(toolBarHeight)
+            make.bottom.equalTo(view.snp.bottom)
+        }
+        
+        chatTableView.snp.makeConstraints { (make) in
+            make.left.equalTo(view.snp.left)
+            make.right.equalTo(view.snp.right)
+            make.bottom.equalTo(toolBarView.snp.top)
+            make.top.equalTo(view.snp.top).offset(64)
         }
     }
 
