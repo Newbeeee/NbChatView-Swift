@@ -11,6 +11,12 @@ import UIKit
 let toolBarHeight: CGFloat = 44
 let fitBlank: CGFloat = 15
 
+enum AnimateType {
+    case animate1 // 键盘弹出的话不会遮挡消息
+    case animate2 // 键盘弹出的话会遮挡消息，但最后一条消息距离输入框有一段距离
+    case animate3 // 最后一条消息距离输入框在小范围内，这里设为 2 * fitBlank = 30
+}
+
 class ChatViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate {
     
     var chatTableView: UITableView!
@@ -22,13 +28,12 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     var mKeyBoardHeight: CGFloat!
     
     var fisrtLoad = true
-    var animateType = 0
-    var firstTrans = true
+    var animateType = AnimateType.animate1
     var lastDifY: CGFloat = 0
+    var animateOption: UIViewAnimationOptions!
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        
         
         view.backgroundColor = UIColor.rgbColorFromHex(rgb: 0xF5F6FA)
         
@@ -39,6 +44,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         let title = UILabel(frame: CGRect(x: (SCREEN_WIDTH - 100)/2, y: 10, width: 100, height: 24))
         title.text = "chat"
         title.textAlignment = .center
+        title.font = UIFont.systemFont(ofSize: 20)
         title.textColor = UIColor.white
         self.navigationController?.navigationBar.barTintColor = UIColor.rgbColorFromHex(rgb: 0x4682B4)
         self.navigationItem.titleView = title
@@ -82,8 +88,17 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
     }
     
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        removeKeyBoard()
+        chatTableView.reloadData()
+        animateType = .animate1
+        lastDifY = 0
+    }
+    
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+
         // 添加键盘弹出消失监听
         if fisrtLoad {
             NotificationCenter.default.addObserver(self, selector: #selector(keyBoardWillShow(notification:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
@@ -146,29 +161,30 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
             let cellDistance = rect.origin.y + rect.height
             let distance1 = SCREEN_HEIGHT - toolBarHeight - keyBoardHeight
-            let distance2 = SCREEN_HEIGHT - toolBarHeight - 40
+            let distance2 = SCREEN_HEIGHT - toolBarHeight - 2 * fitBlank
             let difY = cellDistance - distance1
             
             if cellDistance <= distance1 {
                 animate = {
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                 }
-                animateType = 0
+                animateType = .animate1
             } else if distance1 < cellDistance && cellDistance <= distance2 {
                 animate = {
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                     self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY)
                     self.lastDifY = difY
                 }
-                animateType = 1
+                animateType = .animate2
             } else {
                 animate = {
                     self.view.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                 }
-                animateType = 2
+                animateType = .animate3
             }
         }
         let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
+        animateOption = options
         
         UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate)
     }
@@ -176,8 +192,6 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     func keyBoardWillHide(notification: Notification) {
         
         let userInfo = notification.userInfo! as Dictionary
-        let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
-        mKeyBoardAnimateDuration = duration.doubleValue
         
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
@@ -188,23 +202,22 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                 
             }
             
+            // 返回 view 或 toolBarView 或 chatTableView 到原有状态
             switch animateType {
-            case 0:
+            case .animate1:
                 animate = {
                     self.toolBarView.transform = CGAffineTransform.identity
                     self.chatTableView.transform = CGAffineTransform.identity
                 }
-            case 1:
+            case .animate2:
                 animate = {
                     self.toolBarView.transform = CGAffineTransform.identity
                     self.chatTableView.transform = CGAffineTransform.identity
                 }
-            case 2:
+            case .animate3:
                 animate = {
                     self.view.transform = CGAffineTransform.identity
                 }
-            default:
-                ()
             }
             
             UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
@@ -218,22 +231,32 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         chatTableView.reloadData()
         chatTableView.layoutIfNeeded()
         
+        // 得到最后一条消息在view中的位置
         let lastIndex = IndexPath(row: msgList.count - 1, section: 0)
         let rectCellView = chatTableView.rectForRow(at: lastIndex)
         let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
         let cellDistance = rect.origin.y + rect.height
         let distance1 = SCREEN_HEIGHT - toolBarHeight - mKeyBoardHeight
+        
+        // 计算键盘可能遮住的消息的长度
         let difY = cellDistance - distance1
         
-        if animateType == 2 {
+        if animateType == .animate3 {
             scrollToBottom()
-        } else if (animateType == 0 || animateType == 1) && difY > 0{
+        } else if (animateType == .animate1 || animateType == .animate2) && difY > 0{
             if lastDifY + difY < mKeyBoardHeight {
                 lastDifY += difY
-                self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -lastDifY)
+                let animate: (()->Void) = {
+                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -self.lastDifY)
+                }
+                UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: animateOption, animations: animate)
+
             } else if lastDifY + difY > mKeyBoardHeight {
                 if lastDifY != mKeyBoardHeight {
-                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -mKeyBoardHeight)
+                     let animate: (()->Void) = {
+                        self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -self.mKeyBoardHeight)
+                    }
+                    UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: animateOption, animations: animate)
                     lastDifY = mKeyBoardHeight
                 }
                 scrollToBottom()
@@ -249,15 +272,22 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
     }
     
+    // 清空消息
     func clearMessage() {
+        removeKeyBoard()
         msgList.removeAll()
         chatTableView.reloadData()
-        animateType = 0
+        animateType = .animate1
         lastDifY = 0
     }
     
     // 点击消息列表键盘消失
     func tapRemoveBottomView(recognizer: UITapGestureRecognizer) {
+        removeKeyBoard()
+    }
+    
+    // 键盘消失
+    func removeKeyBoard() {
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
             toolBarView.transform = CGAffineTransform.identity

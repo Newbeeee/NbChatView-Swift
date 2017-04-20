@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "17C7D7641EA73C7E00B445B3"
-               BuildableName = "NbChatView-swift.app"
-               BlueprintName = "NbChatView-swift"
-               ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+               BuildableName = "NbChat.app"
+               BlueprintName = "NbChat"
+               ReferencedContainer = "container:NbChat.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "17C7D7781EA73C7E00B445B3"
-               BuildableName = "NbChatView-swiftTests.xctest"
-               BlueprintName = "NbChatView-swiftTests"
-               ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+               BuildableName = "NbChatTests.xctest"
+               BlueprintName = "NbChatTests"
+               ReferencedContainer = "container:NbChat.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -43,9 +43,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "17C7D7831EA73C7E00B445B3"
-               BuildableName = "NbChatView-swiftUITests.xctest"
-               BlueprintName = "NbChatView-swiftUITests"
-               ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+               BuildableName = "NbChatUITests.xctest"
+               BlueprintName = "NbChatUITests"
+               ReferencedContainer = "container:NbChat.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -53,9 +53,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "17C7D7641EA73C7E00B445B3"
-            BuildableName = "NbChatView-swift.app"
-            BlueprintName = "NbChatView-swift"
-            ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+            BuildableName = "NbChat.app"
+            BlueprintName = "NbChat"
+            ReferencedContainer = "container:NbChat.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <AdditionalOptions>
@@ -76,9 +76,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "17C7D7641EA73C7E00B445B3"
-            BuildableName = "NbChatView-swift.app"
-            BlueprintName = "NbChatView-swift"
-            ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+            BuildableName = "NbChat.app"
+            BlueprintName = "NbChat"
+            ReferencedContainer = "container:NbChat.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <AdditionalOptions>
@@ -95,9 +95,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "17C7D7641EA73C7E00B445B3"
-            BuildableName = "NbChatView-swift.app"
-            BlueprintName = "NbChatView-swift"
-            ReferencedContainer = "container:NbChatView-swift.xcodeproj">
+            BuildableName = "NbChat.app"
+            BlueprintName = "NbChat"
+            ReferencedContainer = "container:NbChat.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
