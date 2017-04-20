@@ -24,6 +24,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     var fisrtLoad = true
     var animateType = 0
     var firstTrans = true
+    var lastDifY: CGFloat = 0
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -36,7 +37,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         
         // 标题
         let title = UILabel(frame: CGRect(x: (SCREEN_WIDTH - 100)/2, y: 10, width: 100, height: 24))
-        title.text = "聊天"
+        title.text = "chat"
         title.textAlignment = .center
         title.textColor = UIColor.white
         self.navigationController?.navigationBar.barTintColor = UIColor.rgbColorFromHex(rgb: 0x4682B4)
@@ -123,8 +124,6 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     
     // MARK: private
     func keyBoardWillShow(notification: Notification) {
-        print("滑动前 originY: " + String(describing: self.chatTableView.frame.origin.y) + "\n" + "height: " +
-        String(describing: self.chatTableView.frame.height))
         let userInfo = notification.userInfo! as Dictionary
         let value = userInfo[UIKeyboardFrameEndUserInfoKey] as! NSValue
         let keyBoardRect = value.cgRectValue
@@ -151,16 +150,15 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             let difY = cellDistance - distance1
             
             if cellDistance <= distance1 {
-                // 只滑动 toolBar
-                // tableview 约束改变
                 animate = {
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
                 }
                 animateType = 0
-            } else if distance1 < cellDistance && cellDistance <= distance2{
+            } else if distance1 < cellDistance && cellDistance <= distance2 {
                 animate = {
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
-                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY - fitBlank)
+                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY)
+                    self.lastDifY = difY
                 }
                 animateType = 1
             } else {
@@ -172,23 +170,18 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         }
         let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
         
-        UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
-            print("滑动后 originY: " + String(describing: self.chatTableView.frame.origin.y) + "\n" + "height: " +
-                String(describing: self.chatTableView.frame.height))
-        })
+        UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate)
     }
     
     func keyBoardWillHide(notification: Notification) {
         
         let userInfo = notification.userInfo! as Dictionary
-        
-        // 得到键盘弹出所需时间
         let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
         mKeyBoardAnimateDuration = duration.doubleValue
         
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
-            // 还原frame
+            
             let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
             
             var animate: (() -> Void) = {
@@ -224,22 +217,27 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     func reloadTableView() {
         chatTableView.reloadData()
         chatTableView.layoutIfNeeded()
+        
         let lastIndex = IndexPath(row: msgList.count - 1, section: 0)
         let rectCellView = chatTableView.rectForRow(at: lastIndex)
         let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
         let cellDistance = rect.origin.y + rect.height
         let distance1 = SCREEN_HEIGHT - toolBarHeight - mKeyBoardHeight
-        //let distance2 = SCREEN_HEIGHT - toolBarHeight
         let difY = cellDistance - distance1
-
+        
         if animateType == 2 {
             scrollToBottom()
-        } else if animateType == 0 && difY > 0{
-            if firstTrans {
-                self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY - fitBlank)
-                firstTrans = false
+        } else if (animateType == 0 || animateType == 1) && difY > 0{
+            if lastDifY + difY < mKeyBoardHeight {
+                lastDifY += difY
+                self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -lastDifY)
+            } else if lastDifY + difY > mKeyBoardHeight {
+                if lastDifY != mKeyBoardHeight {
+                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -mKeyBoardHeight)
+                    lastDifY = mKeyBoardHeight
+                }
+                scrollToBottom()
             }
-            
         }
         
     }
@@ -255,6 +253,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         msgList.removeAll()
         chatTableView.reloadData()
         animateType = 0
+        lastDifY = 0
     }
     
     // 点击消息列表键盘消失
@@ -264,25 +263,5 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             toolBarView.transform = CGAffineTransform.identity
         }
     }
-    
-    func refreshLayout() {
-        // 添加约束
-        toolBarView.snp.removeConstraints()
-        chatTableView.snp.removeConstraints()
-        toolBarView.snp.makeConstraints { (make) in
-            make.left.equalTo(view.snp.left)
-            make.right.equalTo(view.snp.right)
-            make.height.equalTo(toolBarHeight)
-            make.bottom.equalTo(view.snp.bottom)
-        }
-        
-        chatTableView.snp.makeConstraints { (make) in
-            make.left.equalTo(view.snp.left)
-            make.right.equalTo(view.snp.right)
-            make.bottom.equalTo(toolBarView.snp.top)
-            make.top.equalTo(view.snp.top).offset(64)
-        }
-    }
-
 }
 
