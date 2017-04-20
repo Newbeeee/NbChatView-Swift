@@ -9,6 +9,7 @@
 import UIKit
 
 let toolBarHeight: CGFloat = 44
+let fitBlank: CGFloat = 15
 
 class ChatViewController: UIViewController, UITableViewDelegate, UITableViewDataSource, UITextViewDelegate {
     
@@ -22,6 +23,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     
     var fisrtLoad = true
     var animateType = 0
+    var firstTrans = true
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -49,7 +51,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         chatTableView.delegate = self
         chatTableView.dataSource = self
         // 让列表最后一条消息和底部工具栏有一定距离
-        chatTableView.contentInset = UIEdgeInsetsMake(0, 0, toolBarHeight/2, 0)
+        chatTableView.contentInset = UIEdgeInsetsMake(0, 0, fitBlank, 0)
         chatTableView.separatorStyle = .none
         chatTableView.register(ChatBaseCell.self, forCellReuseIdentifier: "chat")
         // 点击列表使键盘消失
@@ -144,9 +146,10 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             let rectCellView = chatTableView.rectForRow(at: lastIndex)
             let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
             let cellDistance = rect.origin.y + rect.height
-            let distance1 = SCREEN_HEIGHT - 64 - toolBarHeight - keyBoardHeight
-            let distance2 = SCREEN_HEIGHT - 64 - toolBarHeight
-
+            let distance1 = SCREEN_HEIGHT - toolBarHeight - keyBoardHeight
+            let distance2 = SCREEN_HEIGHT - toolBarHeight - 40
+            let difY = cellDistance - distance1
+            
             if cellDistance <= distance1 {
                 // 只滑动 toolBar
                 // tableview 约束改变
@@ -155,11 +158,9 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
                 }
                 animateType = 0
             } else if distance1 < cellDistance && cellDistance <= distance2{
-                // chatview 滑动一段差值
-                let difY = mKeyBoardHeight + toolBarHeight - SCREEN_HEIGHT + cellDistance
                 animate = {
                     self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
-                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY)
+                    self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY - fitBlank)
                 }
                 animateType = 1
             } else {
@@ -198,6 +199,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             case 0:
                 animate = {
                     self.toolBarView.transform = CGAffineTransform.identity
+                    self.chatTableView.transform = CGAffineTransform.identity
                 }
             case 1:
                 animate = {
@@ -213,7 +215,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             }
             
             UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
-                
+                self.scrollToBottom()
             })
         }
     }
@@ -222,7 +224,24 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     func reloadTableView() {
         chatTableView.reloadData()
         chatTableView.layoutIfNeeded()
-        scrollToBottom()
+        let lastIndex = IndexPath(row: msgList.count - 1, section: 0)
+        let rectCellView = chatTableView.rectForRow(at: lastIndex)
+        let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
+        let cellDistance = rect.origin.y + rect.height
+        let distance1 = SCREEN_HEIGHT - toolBarHeight - mKeyBoardHeight
+        //let distance2 = SCREEN_HEIGHT - toolBarHeight
+        let difY = cellDistance - distance1
+
+        if animateType == 2 {
+            scrollToBottom()
+        } else if animateType == 0 && difY > 0{
+            if firstTrans {
+                self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY - fitBlank)
+                firstTrans = false
+            }
+            
+        }
+        
     }
     
     // 滚动最后一条消息到列表界面底部
@@ -242,6 +261,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     func tapRemoveBottomView(recognizer: UITapGestureRecognizer) {
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
+            toolBarView.transform = CGAffineTransform.identity
         }
     }
     
