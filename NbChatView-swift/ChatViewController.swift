@@ -241,9 +241,18 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         // 计算键盘可能遮住的消息的长度
         let difY = cellDistance - distance1
         
+        
         if animateType == .animate3 {
+            // 处于情况三时，由于之前的约束（聊天界面在输入栏上方），并且
+            // 是整个界面一起上滑，所以约束依旧成立，只需把聊天界面最后
+            // 一条消息滚动到聊天界面底部即可
             scrollToBottom()
         } else if (animateType == .animate1 || animateType == .animate2) && difY > 0{
+            // 在情况一和情况二中，如果聊天界面上滑的总距离小于键盘高度，则可以继续上滑
+            // 一旦聊天界面上滑的总距离 lastDifY + difY 将要超过键盘高度，则上滑总距离设为键盘高度
+            // 此时执行 trans 动画
+            // 一旦聊天界面上滑总距离为键盘高度，则变为情况三的情况，把聊天界面最后
+            // 一条消息滚动到聊天界面底部即可
             if lastDifY + difY < mKeyBoardHeight {
                 lastDifY += difY
                 let animate: (()->Void) = {
