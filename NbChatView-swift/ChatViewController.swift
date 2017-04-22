@@ -24,6 +24,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     
     var msgList = [Message]()
     
+    var mUserInfo: Dictionary<AnyHashable, Any>!
     var mKeyBoardAnimateDuration: Double!
     var mKeyBoardHeight: CGFloat!
     
@@ -31,6 +32,8 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     var animateType = AnimateType.animate1
     var lastDifY: CGFloat = 0
     var animateOption: UIViewAnimationOptions!
+    var oldOffsetY: CGFloat = 0
+    var isKeyboardShowed = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -86,6 +89,8 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             make.bottom.equalTo(toolBarView.snp.top)
             make.top.equalTo(view.snp.top).offset(64)
         }
+        
+        oldOffsetY = chatTableView.contentOffset.y
     }
     
     override func viewDidDisappear(_ animated: Bool) {
@@ -119,6 +124,19 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         return cell
     }
     
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        if scrollView.contentOffset.y > oldOffsetY {
+            // 向上滑动
+        } else if scrollView.contentOffset.y < oldOffsetY {
+            // 向下滑动
+            if isKeyboardShowed {
+                hideKeyboard()
+            }
+        }
+        
+        oldOffsetY = scrollView.contentOffset.y
+    }
+    
     // MARK: textViewDelegate
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         if text == "\n" {
@@ -140,6 +158,7 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
     // MARK: private
     func keyBoardWillShow(notification: Notification) {
         let userInfo = notification.userInfo! as Dictionary
+        mUserInfo = userInfo
         let value = userInfo[UIKeyboardFrameEndUserInfoKey] as! NSValue
         let keyBoardRect = value.cgRectValue
         // 得到键盘高度
@@ -149,9 +168,16 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
         // 得到键盘弹出所需时间
         let duration = userInfo[UIKeyboardAnimationDurationUserInfoKey] as! NSNumber
         mKeyBoardAnimateDuration = duration.doubleValue
-        
+        showKeyboard()
+    }
+    
+    func keyBoardWillHide(notification: Notification) {
+        hideKeyboard()
+    }
+    
+    func showKeyboard() {
         var animate: (()->Void) = {
-            self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+            self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -self.mKeyBoardHeight)
         }
         
         
@@ -160,43 +186,44 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             let rectCellView = chatTableView.rectForRow(at: lastIndex)
             let rect = chatTableView.convert(rectCellView, to: chatTableView.superview)
             let cellDistance = rect.origin.y + rect.height
-            let distance1 = SCREEN_HEIGHT - toolBarHeight - keyBoardHeight
+            let distance1 = SCREEN_HEIGHT - toolBarHeight - mKeyBoardHeight
             let distance2 = SCREEN_HEIGHT - toolBarHeight - 2 * fitBlank
             let difY = cellDistance - distance1
             
             if cellDistance <= distance1 {
                 animate = {
-                    self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+                    self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -self.mKeyBoardHeight)
                 }
                 animateType = .animate1
             } else if distance1 < cellDistance && cellDistance <= distance2 {
                 animate = {
-                    self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+                    self.toolBarView.transform = CGAffineTransform(translationX: 0, y: -self.mKeyBoardHeight)
                     self.chatTableView.transform = CGAffineTransform(translationX: 0, y: -difY)
                     self.lastDifY = difY
                 }
                 animateType = .animate2
             } else {
                 animate = {
-                    self.view.transform = CGAffineTransform(translationX: 0, y: -keyBoardHeight)
+                    self.view.transform = CGAffineTransform(translationX: 0, y: -self.mKeyBoardHeight)
                 }
                 animateType = .animate3
             }
         }
-        let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
+        let options = UIViewAnimationOptions(rawValue: UInt((mUserInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
         animateOption = options
         
-        UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate)
+        UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate) { (isFinished) in
+            self.oldOffsetY = self.chatTableView.contentOffset.y
+            self.isKeyboardShowed = true
+        }
     }
     
-    func keyBoardWillHide(notification: Notification) {
-        
-        let userInfo = notification.userInfo! as Dictionary
+    func hideKeyboard() {
         
         if toolBarView.textView.isFirstResponder {
             toolBarView.textView.resignFirstResponder()
             
-            let options = UIViewAnimationOptions(rawValue: UInt((userInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
+            let options = UIViewAnimationOptions(rawValue: UInt((mUserInfo[UIKeyboardAnimationCurveUserInfoKey] as! NSNumber).intValue << 16))
             
             var animate: (() -> Void) = {
                 
@@ -222,6 +249,8 @@ class ChatViewController: UIViewController, UITableViewDelegate, UITableViewData
             
             UIView.animate(withDuration: mKeyBoardAnimateDuration, delay: 0, options: options, animations: animate, completion: { (finish) in
                 self.scrollToBottom()
+                self.oldOffsetY = self.chatTableView.contentOffset.y
+                self.isKeyboardShowed = false
             })
         }
     }
